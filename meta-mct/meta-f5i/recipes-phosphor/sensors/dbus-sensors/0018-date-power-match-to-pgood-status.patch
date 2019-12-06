@@ -1,0 +1,62 @@
+From 4dd57b875e8363cc8b6ca5050c31e0056f5300f2 Mon Sep 17 00:00:00 2001
+From: Ray Lue <ray.lue@mic.com.tw>
+Date: Fri, 6 Dec 2019 16:29:19 +0800
+Subject: [PATCH] date power match to pgood status
+
+---
+ src/Utils.cpp | 31 ++++++++++++++++++++++++++++++-
+ 1 file changed, 30 insertions(+), 1 deletion(-)
+ mode change 100644 => 100755 src/Utils.cpp
+
+diff --git a/src/Utils.cpp b/src/Utils.cpp
+old mode 100644
+new mode 100755
+index f1a70b5..d8531a9
+--- a/src/Utils.cpp
++++ b/src/Utils.cpp
+@@ -135,7 +135,36 @@ void setupPowerMatch(const std::shared_ptr<sdbusplus::asio::connection>& conn)
+     {
+         return;
+     }
++ #if 1   
++    std::cerr  << "setupPowerMatch\n";
++    std::function<void(sdbusplus::message::message & message)> eventHandler =
++        [](sdbusplus::message::message& message) {
++            std::string objectName;
++            boost::container::flat_map<std::string, std::variant<int>> propertiesChanged;
++            message.read(objectName, propertiesChanged);
++            std::string event = propertiesChanged.begin()->first;
++            int *pgood = std::get_if<int>(&propertiesChanged.begin()->second);
++
++            if (!pgood)
++            {
++                std::cerr << "event has invalid type\n";
++                return;
++            }
++            if (event == "pgood")
++            {
++                powerStatusOn = (*pgood == 1) ? true:false;
++            }
++
++        };
++        //event trigger, this can move to poll the gpio service.
++    powerMatch = std::make_unique<sdbusplus::bus::match::match>(
++        static_cast<sdbusplus::bus::bus&>(*conn),
++        "type='signal',interface='org.freedesktop.DBus.Properties',member='"
++        "PropertiesChanged',arg0namespace='org.openbmc.control.Power'",
++        std::move(eventHandler));
+ 
++#endif    
++#if 0
+     powerMatch = std::make_unique<sdbusplus::bus::match::match>(
+         static_cast<sdbusplus::bus::bus&>(*conn),
+         "type='signal',interface='" + std::string(properties::interface) +
+@@ -173,7 +202,7 @@ void setupPowerMatch(const std::shared_ptr<sdbusplus::asio::connection>& conn)
+                 });
+             }
+         });
+-
++#endif 
+     postMatch = std::make_unique<sdbusplus::bus::match::match>(
+         static_cast<sdbusplus::bus::bus&>(*conn),
+         "type='signal',interface='" + std::string(properties::interface) +
